@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<Window
+    x:Class="Aurora.SplashWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    Title="Aurora"
+    mc:Ignorable="d">
+
+    <!--
+        The startup card. Nothing in here animates: the whole reveal is a tree of composition visuals
+        hung on the Stage grid from SplashAnimation, which means the GPU plays it and the UI thread is
+        free to build the player behind it. There is no image, no video and no timeline in this file —
+        the card is one flat colour, and every element drawn over it is geometry or one of the two
+        logo images.
+    -->
+    <Border x:Name="Shell"
+            Background="#FF000000"
+            BorderThickness="0"
+            CornerRadius="20">
+        <Grid x:Name="Stage" />
+    </Border>
+</Window>

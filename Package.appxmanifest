@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<Package
+  xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
+  xmlns:mp="http://schemas.microsoft.com/appx/2014/phone/manifest"
+  xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
+  xmlns:uap10="http://schemas.microsoft.com/appx/manifest/uap/windows10/10"
+  xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
+  IgnorableNamespaces="uap uap10 rescap">
+
+  <Identity
+    Name="8AD9ACA4-C66C-4968-8EF5-8DF592FE4662"
+    Publisher="CN=AppPublisher"
+    Version="1.5.0.0" />
+
+  <mp:PhoneIdentity PhoneProductId="8AD9ACA4-C66C-4968-8EF5-8DF592FE4662" PhonePublisherId="00000000-0000-0000-0000-000000000000"/>
+
+  <Properties>
+    <DisplayName>Aurora</DisplayName>
+    <PublisherDisplayName>AppPublisher</PublisherDisplayName>
+    <Logo>Assets\StoreLogo.png</Logo>
+    <uap10:PackageIntegrity>
+      <uap10:Content Enforcement="on"/>
+    </uap10:PackageIntegrity>
+  </Properties>
+
+  <Dependencies>
+    <!--
+      Windows 11 24H2 (build 26100) is the floor, and it is the same number the project targets.
+      Keep this in step with TargetPlatformMinVersion in Aurora.csproj and with the check in
+      App.OnLaunched: the three are one decision made in three places.
+    -->
+    <TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.26100.0" MaxVersionTested="10.0.26200.0" />
+  </Dependencies>
+
+  <Resources>
+    <Resource Language="x-generate"/>
+  </Resources>
+
+  <Applications>
+    <Application Id="App"
+      Executable="$targetnametoken$.exe"
+      EntryPoint="$targetentrypoint$">
+      <uap:VisualElements
+        DisplayName="Aurora"
+        Description="Aurora"
+        BackgroundColor="transparent"
+        Square150x150Logo="Assets\Square150x150Logo.png"
+        Square44x44Logo="Assets\Square44x44Logo.png">
+        <uap:DefaultTile Wide310x150Logo="Assets\Wide310x150Logo.png" />
+        <uap:SplashScreen Image="Assets\SplashScreen.png" />
+      </uap:VisualElements>
+
+      <!--
+        What Windows offers Aurora for, and what it is offered as. This single declaration is what puts
+        Aurora into the "Open with" list on a file's context menu, into Settings > Apps > Default apps,
+        and into the double-click path; a file opened any of those ways arrives at
+        App.OnFileActivated.
+
+        The list is the audio formats the player actually accepts. A video container is deliberately
+        not among them: .mp4 is in the scanner's list because it can carry audio, but claiming it here
+        would offer Aurora for video, which is not what it is.
+      -->
+      <Extensions>
+        <uap:Extension Category="windows.fileTypeAssociation">
+          <uap:FileTypeAssociation Name="aurora.audio">
+            <uap:DisplayName>Aurora 音频</uap:DisplayName>
+            <!--
+              The icon Explorer shows for these files. File icons are drawn without a plate, over both
+              the light and the dark file list, so this is the bare mark in a mid blue-violet that
+              reads on either; the asset set carries the whole size ladder Explorer asks for, from
+              16px in Details view to 256px at Extra large icons.
+
+              The order of these child elements is fixed by the schema — DisplayName, then Logo, then
+              SupportedFileTypes — and the build fails rather than repairing it if they are swapped.
+            -->
+            <uap:Logo>Assets\FileAudioIcon.png</uap:Logo>
+            <uap:SupportedFileTypes>
+              <uap:FileType>.mp3</uap:FileType>
+              <uap:FileType>.flac</uap:FileType>
+              <uap:FileType>.wav</uap:FileType>
+              <uap:FileType>.m4a</uap:FileType>
+              <uap:FileType>.aac</uap:FileType>
+              <uap:FileType>.ogg</uap:FileType>
+              <uap:FileType>.oga</uap:FileType>
+              <uap:FileType>.opus</uap:FileType>
+              <uap:FileType>.wma</uap:FileType>
+              <uap:FileType>.aiff</uap:FileType>
+              <uap:FileType>.aif</uap:FileType>
+              <uap:FileType>.ape</uap:FileType>
+              <uap:FileType>.mka</uap:FileType>
+            </uap:SupportedFileTypes>
+          </uap:FileTypeAssociation>
+        </uap:Extension>
+      </Extensions>
+    </Application>
+  </Applications>
+
+  <Capabilities>
+    <rescap:Capability Name="runFullTrust" />
+  </Capabilities>
+</Package>

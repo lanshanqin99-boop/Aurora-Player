@@ -1,0 +1,289 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<Window
+    x:Class="Aurora.MainWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:local="using:Aurora"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    Title="Aurora"
+    mc:Ignorable="d">
+
+    <!--
+        The visual surface is the root Border below. Its background is the ambient colour
+        derived from the current track's cover art: pure #000000 when there is no cover,
+        otherwise a restrained gradient built from the cover's palette. The window itself
+        stays a plain borderless shell, so all rounding and material is composited by XAML.
+    -->
+    <Border x:Name="Shell"
+            CornerRadius="24">
+        <Border.Background>
+            <LinearGradientBrush x:Name="AmbientBrush"
+                                 StartPoint="0,0"
+                                 EndPoint="1,1">
+                <GradientStop x:Name="AmbientStopPrimary" Offset="0" Color="#FF000000" />
+                <GradientStop x:Name="AmbientStopAccent" Offset="0.55" Color="#FF000000" />
+                <GradientStop x:Name="AmbientStopSecondary" Offset="1" Color="#FF000000" />
+            </LinearGradientBrush>
+        </Border.Background>
+
+        <Grid>
+            <!--
+                The idle surface: one aurora photograph, shown only while nothing is playing — the
+                window before the first track and again after playback stops. It is deliberately
+                faint and is darkened towards the bottom, so it reads as the room the player sits in
+                rather than as a wallpaper: the title, artist, transport buttons and progress bar stay
+                the brightest things on screen. It never takes part in the palette, and it is not hit
+                testable, so nothing about dragging or clicking changes.
+            -->
+            <Image x:Name="IdleBackground"
+                   HorizontalAlignment="Left"
+                   VerticalAlignment="Top"
+                   IsHitTestVisible="False"
+                   Opacity="0"
+                   Stretch="Fill" />
+
+            <!--
+                The darkening for that photograph, and the only thing standing between it and the
+                text: nothing at the top, where the title and the aurora are, then deepening downwards
+                so the transport row and the bar keep their contrast. It is a gentle wash, not a
+                blackout — the photograph is meant to stay readable as a scene.
+            -->
+            <Rectangle x:Name="IdleScrim"
+                       IsHitTestVisible="False"
+                       Opacity="0">
+                <Rectangle.Fill>
+                    <LinearGradientBrush StartPoint="0.5,0" EndPoint="0.5,1">
+                        <GradientStop Offset="0" Color="#0D000000" />
+                        <GradientStop Offset="0.38" Color="#33000000" />
+                        <GradientStop Offset="0.68" Color="#5C000000" />
+                        <GradientStop Offset="1" Color="#7A000000" />
+                    </LinearGradientBrush>
+                </Rectangle.Fill>
+            </Rectangle>
+
+            <!--
+                Soft highlight, behind every piece of content: a wide radial wash whose origin
+                drifts slowly, so the large colour field breathes instead of sitting flat. It is
+                invisible to input, it sits under the text rather than over it, and its colour comes
+                from the same palette as the background — white when the background is black, so a
+                track without a cover still has a living surface instead of a dead one.
+            -->
+            <Rectangle x:Name="AmbientHighlight"
+                       IsHitTestVisible="False"
+                       Opacity="0">
+                <Rectangle.Fill>
+                    <RadialGradientBrush x:Name="HighlightBrush"
+                                         Center="0.35,0.3"
+                                         GradientOrigin="0.35,0.3"
+                                         RadiusX="0.85"
+                                         RadiusY="1.1">
+                        <GradientStop x:Name="HighlightCore" Offset="0" Color="#00FFFFFF" />
+                        <GradientStop x:Name="HighlightMid" Offset="0.5" Color="#00FFFFFF" />
+                        <GradientStop Offset="1" Color="#00FFFFFF" />
+                    </RadialGradientBrush>
+                </Rectangle.Fill>
+            </Rectangle>
+
+            <Grid x:Name="RootGrid">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+            <!--
+                The drag surface for the system move loop. SetTitleBar() is pointed at
+                this element, so dragging is handled natively by the composition/input
+                stack rather than by moving the window from PointerMoved.
+
+                It deliberately spans only the header and transport rows: covering the
+                seek row would hand the progress bar's input to the non-client title-bar
+                mechanism, so dragging the slider would move the window instead.
+            -->
+            <Grid x:Name="DragRegion"
+                  Grid.RowSpan="2"
+                  Background="Transparent" />
+
+            <!--
+                Track title / artist, with the open and queue controls beside them.
+
+                This is a two-column grid rather than overlapping children: the text column is
+                `*` and the controls column is `Auto`, so the title is laid out in the width
+                that is genuinely left over and its ellipsis begins exactly at the controls'
+                edge. Nothing truncates the string by length, and the buttons can be neither
+                covered nor squeezed because the layout hands them their full measured size
+                first. A short title is unaffected: it still starts at the same offset and is
+                not stretched or padded.
+            -->
+            <Grid Grid.Row="0" Margin="20,14,16,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0"
+                            VerticalAlignment="Center">
+                    <TextBlock x:Name="TitleText"
+                               FontSize="15"
+                               FontWeight="Bold"
+                               Foreground="#FFFFFFFF"
+                               Text="Aurora"
+                               TextTrimming="CharacterEllipsis"
+                               TextWrapping="NoWrap" />
+                    <TextBlock x:Name="ArtistText"
+                               FontSize="12"
+                               Foreground="#A6FFFFFF"
+                               Text=""
+                               TextTrimming="CharacterEllipsis"
+                               TextWrapping="NoWrap" />
+                </StackPanel>
+
+                <StackPanel Grid.Column="1"
+                            VerticalAlignment="Center"
+                            Orientation="Horizontal"
+                            Spacing="6">
+                    <Button x:Name="OpenButton"
+                            Width="32"
+                            Height="32"
+                            Padding="0"
+                            Background="#26FFFFFF"
+                            BorderThickness="0"
+                            Click="OnOpenClicked"
+                            CornerRadius="10"
+                            ToolTipService.ToolTip="打开文件或文件夹">
+                        <FontIcon FontSize="14"
+                                  Foreground="#FFFFFFFF"
+                                  Glyph="&#xE8E5;" />
+                    </Button>
+
+                    <Button x:Name="ListToggleButton"
+                            Width="32"
+                            Height="32"
+                            Padding="0"
+                            Background="#26FFFFFF"
+                            BorderThickness="0"
+                            Click="OnListToggleClicked"
+                            CornerRadius="10"
+                            ToolTipService.ToolTip="显示或隐藏播放列表">
+                        <FontIcon FontSize="14"
+                                  Foreground="#FFFFFFFF"
+                                  Glyph="&#xE8FD;" />
+                    </Button>
+                </StackPanel>
+            </Grid>
+
+            <!--  Playback controls  -->
+            <StackPanel Grid.Row="1"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        Orientation="Horizontal"
+                        Spacing="14">
+                <Button x:Name="PreviousButton"
+                        Width="36"
+                        Height="36"
+                        Padding="0"
+                        Background="#26FFFFFF"
+                        BorderThickness="0"
+                        Click="OnPreviousClicked"
+                        CornerRadius="18">
+                    <FontIcon FontSize="14"
+                              Foreground="#FFFFFFFF"
+                              Glyph="&#xE892;" />
+                </Button>
+
+                <Button x:Name="PlayPauseButton"
+                        Width="48"
+                        Height="48"
+                        Padding="0"
+                        Background="#FFFFFFFF"
+                        BorderThickness="0"
+                        Click="OnPlayPauseClicked"
+                        CornerRadius="24">
+                    <FontIcon x:Name="PlayPauseIcon"
+                              FontSize="18"
+                              Foreground="#FF1A1A1A"
+                              Glyph="&#xE768;" />
+                </Button>
+
+                <Button x:Name="NextButton"
+                        Width="36"
+                        Height="36"
+                        Padding="0"
+                        Background="#26FFFFFF"
+                        BorderThickness="0"
+                        Click="OnNextClicked"
+                        CornerRadius="18">
+                    <FontIcon FontSize="14"
+                              Foreground="#FFFFFFFF"
+                              Glyph="&#xE893;" />
+                </Button>
+            </StackPanel>
+
+            <!--  Progress: click or drag anywhere on the bar to seek.  -->
+            <Grid Grid.Row="2" Margin="20,0,20,18">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+                <Grid x:Name="SeekArea"
+                      Height="16"
+                      Background="Transparent"
+                      PointerPressed="OnSeekPointerPressed"
+                      PointerMoved="OnSeekPointerMoved"
+                      PointerReleased="OnSeekPointerReleased"
+                      PointerCanceled="OnSeekPointerReleased">
+                    <!--
+                        The unplayed remainder. Its colour comes from the same palette as the fill, at
+                        the same low alpha as before, so the whole bar belongs to the track's colours
+                        rather than only the part that has been played: a bar that took its colour only
+                        after the first second of playback read as a white bar with a coloured strip
+                        in it, which is the one thing the bar is not meant to be.
+                    -->
+                    <Border x:Name="ProgressTrack"
+                            Height="6"
+                            VerticalAlignment="Center"
+                            Background="#33FFFFFF"
+                            CornerRadius="3" />
+
+                    <!--
+                        The played part. Its colour ramp is set from code to the current album's
+                        accent: the start of the fill is the accent itself and its head is that accent
+                        lifted, so the played length reads as one light getting brighter towards the
+                        play position. Both stops are recoloured whenever the palette changes.
+                    -->
+                    <Border x:Name="ProgressFill"
+                            Width="0"
+                            Height="6"
+                            HorizontalAlignment="Left"
+                            VerticalAlignment="Center"
+                            CornerRadius="3">
+                        <Border.Background>
+                            <LinearGradientBrush x:Name="ProgressFillBrush"
+                                                 StartPoint="0,0.5"
+                                                 EndPoint="1,0.5">
+                                <GradientStop x:Name="ProgressFillTail" Offset="0" Color="#FFFFFFFF" />
+                                <GradientStop x:Name="ProgressFillHead" Offset="1" Color="#FFFFFFFF" />
+                            </LinearGradientBrush>
+                        </Border.Background>
+                    </Border>
+                </Grid>
+
+                <Grid Grid.Row="1" Margin="0,4,0,0">
+                    <TextBlock x:Name="PositionText"
+                               HorizontalAlignment="Left"
+                               FontSize="11"
+                               Foreground="#8CFFFFFF"
+                               Text="0:00" />
+                    <TextBlock x:Name="DurationText"
+                               HorizontalAlignment="Right"
+                               FontSize="11"
+                               Foreground="#8CFFFFFF"
+                               Text="0:00" />
+                </Grid>
+            </Grid>
+        </Grid>
+        </Grid>
+    </Border>
+</Window>

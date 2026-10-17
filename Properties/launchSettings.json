@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "Aurora (Package)": {
+      "commandName": "MsixPackage"
+    },
+    "Aurora (Unpackaged)": {
+      "commandName": "Project"
+    }
+  }
+}

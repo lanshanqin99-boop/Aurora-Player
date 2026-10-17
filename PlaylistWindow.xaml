@@ -1,0 +1,303 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<Window
+    x:Class="Aurora.PlaylistWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:local="using:Aurora"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    Title="播放列表"
+    mc:Ignorable="d">
+
+    <!--
+        Same shell treatment as the main player: a plain borderless window whose only
+        painted surface is this 24px rounded Border.
+    -->
+    <Border x:Name="Shell"
+            CornerRadius="24">
+        <Border.Background>
+            <!--
+                The same three-stop gradient as the player, painted from the same palette: the queue
+                is handed the player's palette rather than resolving one of its own, so the two
+                surfaces cannot drift apart.
+            -->
+            <LinearGradientBrush x:Name="AmbientBrush"
+                                 StartPoint="0,0"
+                                 EndPoint="1,1">
+                <GradientStop x:Name="AmbientStopPrimary" Offset="0" Color="#FF000000" />
+                <GradientStop x:Name="AmbientStopAccent" Offset="0.55" Color="#FF000000" />
+                <GradientStop x:Name="AmbientStopSecondary" Offset="1" Color="#FF000000" />
+            </LinearGradientBrush>
+        </Border.Background>
+
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <!--
+                The idle picture, continued from the player. The two windows are stacked, share a
+                width and sit a fixed gap apart, so one photograph can run down both of them: the
+                player shows the sky, the queue the ground below it. This is a viewport onto that one
+                picture rather than a picture of its own — the band it shows is measured in
+                IdleCanvas and begins exactly where the player's band ended plus the gap, so nothing
+                is repeated and nothing is cut to fit.
+
+                It is anchored top-left because the band is expressed as an offset: the picture is
+                laid out at full height and slid up, and the window's own edge is what crops it. It
+                is not hit testable, so dragging, scrolling and every row behave exactly as before.
+            -->
+            <Image x:Name="IdleBackground"
+                   Grid.RowSpan="3"
+                   HorizontalAlignment="Left"
+                   VerticalAlignment="Top"
+                   IsHitTestVisible="False"
+                   Opacity="0"
+                   Stretch="Fill" />
+
+            <!--
+                The darkening for that picture: the same brush the player uses, stretched over this
+                window. That is what "the same treatment" means here — the queue is shaded over its own
+                height exactly as the player is over its own, rather than the pair sharing one ramp,
+                which would have left the player's lower half lighter than it has always been.
+            -->
+            <Rectangle x:Name="IdleScrim"
+                       Grid.RowSpan="3"
+                       IsHitTestVisible="False"
+                       Opacity="0">
+                <Rectangle.Fill>
+                    <LinearGradientBrush StartPoint="0.5,0" EndPoint="0.5,1">
+                        <GradientStop Offset="0" Color="#0D000000" />
+                        <GradientStop Offset="0.38" Color="#33000000" />
+                        <GradientStop Offset="0.68" Color="#5C000000" />
+                        <GradientStop Offset="1" Color="#7A000000" />
+                    </LinearGradientBrush>
+                </Rectangle.Fill>
+            </Rectangle>
+
+            <!--  Header doubles as the window drag surface.  -->
+            <Grid x:Name="DragRegion"
+                  Grid.Row="0"
+                  Height="48"
+                  Background="Transparent">
+                <TextBlock Margin="20,0,0,0"
+                           HorizontalAlignment="Left"
+                           VerticalAlignment="Center"
+                           FontSize="13"
+                           FontWeight="Bold"
+                           Foreground="#FFFFFFFF"
+                           Text="播放列表" />
+                <TextBlock x:Name="CountText"
+                           Margin="0,0,20,0"
+                           HorizontalAlignment="Right"
+                           VerticalAlignment="Center"
+                           FontSize="12"
+                           Foreground="#A6FFFFFF"
+                           Text="0 首" />
+            </Grid>
+
+            <!--
+                The queue. Bound straight to PlaybackService.Items, which is the single
+                source of truth, so a reorder mutates that one collection.
+
+                Reordering is the ListView's own drag-and-drop, enabled by CanDragItems /
+                CanReorderItems / AllowDrop. Those three are what switch the gesture on at all:
+                with them unset (their default) the list never begins a drag, so no
+                DragItemsStarting or DragItemsCompleted can fire. The custom pointer handlers
+                that used to sit here are gone — they captured the pointer on every press, which
+                is the other way the list's own drag gets stopped before it starts.
+            -->
+            <Grid Grid.Row="1">
+                <ListView x:Name="TrackList"
+                          AllowDrop="True"
+                          Background="Transparent"
+                          BorderThickness="0"
+                          CanDragItems="True"
+                          CanReorderItems="True"
+                          DragItemsCompleted="OnTrackListDragItemsCompleted"
+                          SelectionMode="Single"
+                          SelectionChanged="OnTrackListSelectionChanged"
+                          ScrollViewer.HorizontalScrollMode="Disabled"
+                          ScrollViewer.VerticalScrollBarVisibility="Auto">
+                    <ListView.Resources>
+                        <!--  Flat rows: no container chrome, selection is the highlight.  -->
+                        <Style TargetType="ListViewItem">
+                            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                            <Setter Property="Padding" Value="0" />
+                            <Setter Property="Margin" Value="0,1" />
+                            <Setter Property="MinHeight" Value="0" />
+                            <Setter Property="Background" Value="Transparent" />
+                            <Setter Property="CornerRadius" Value="10" />
+                        </Style>
+                    </ListView.Resources>
+
+                    <ListView.ItemContainerTransitions>
+                        <TransitionCollection />
+                    </ListView.ItemContainerTransitions>
+
+                    <ListView.ItemTemplate>
+                        <DataTemplate x:DataType="local:AudioTrack">
+                            <!--
+                                One row, with the divider that opens its group stacked above it. The
+                                divider is collapsed for every row that does not start a group, and a
+                                collapsed row has no height, so the queue keeps its line height exactly
+                                where there is nothing to say. It carries the folder the tracks below it
+                                came from — the subfolder when they sit in one — so a queue built over
+                                several sittings reads as groups instead of one long run.
+                            -->
+                            <Grid Background="Transparent">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+
+                                <Grid Grid.Row="0"
+                                      Margin="12,12,12,4"
+                                      Visibility="{x:Bind local:DisplayRules.GroupHeaderVisibility(IsGroupStart), Mode=OneWay}">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+
+                                    <!--
+                                        The label sits in the middle with a hairline either side, so it
+                                        reads as a division of the list rather than as another row of it:
+                                        smaller than a title, quieter than an artist, and held short by
+                                        TextTrimming.
+                                    -->
+                                    <Rectangle Grid.Column="0"
+                                               Height="1"
+                                               VerticalAlignment="Center"
+                                               Fill="#1FFFFFFF"
+                                               RadiusX="0.5"
+                                               RadiusY="0.5" />
+                                    <TextBlock Grid.Column="1"
+                                               Margin="10,0"
+                                               FontSize="11"
+                                               Foreground="#8CFFFFFF"
+                                               Text="{x:Bind GroupLabel, Mode=OneWay}"
+                                               TextTrimming="CharacterEllipsis" />
+                                    <Rectangle Grid.Column="2"
+                                               Height="1"
+                                               VerticalAlignment="Center"
+                                               Fill="#1FFFFFFF"
+                                               RadiusX="0.5"
+                                               RadiusY="0.5" />
+                                </Grid>
+
+                                <Grid Grid.Row="1" Height="52">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+
+                                <StackPanel Grid.Column="0"
+                                            Margin="12,0,0,0"
+                                            VerticalAlignment="Center">
+                                    <!--
+                                        Both lines are shaped for display only, by DisplayRules: a
+                                        file whose name is a site address shows no text at all, and
+                                        an artist longer than five Han characters is collapsed.
+                                        AudioTrack.Title / Artist are untouched, so playback,
+                                        sorting and dragging see the tags as they were.
+                                    -->
+                                    <TextBlock FontSize="13"
+                                               Foreground="#FFFFFFFF"
+                                               Text="{x:Bind local:DisplayRules.TitleFor(FilePath, Title)}"
+                                               TextTrimming="CharacterEllipsis"
+                                               Visibility="{x:Bind local:DisplayRules.TitleVisibilityFor(FilePath, Title)}" />
+                                    <TextBlock FontSize="11"
+                                               Foreground="#99FFFFFF"
+                                               Text="{x:Bind local:DisplayRules.ArtistFor(FilePath, ArtistText)}"
+                                               TextTrimming="CharacterEllipsis"
+                                               Visibility="{x:Bind local:DisplayRules.ArtistVisibilityFor(FilePath, ArtistText)}" />
+                                </StackPanel>
+
+                                <TextBlock Grid.Column="1"
+                                           Margin="8,0"
+                                           VerticalAlignment="Center"
+                                           FontSize="11"
+                                           Foreground="#8CFFFFFF"
+                                           Text="{x:Bind DurationText}" />
+
+                                <Button Grid.Column="2"
+                                        Width="28"
+                                        Height="28"
+                                        Margin="0,0,8,0"
+                                        Padding="0"
+                                        VerticalAlignment="Center"
+                                        Background="Transparent"
+                                        BorderThickness="0"
+                                        Click="OnRemoveClicked"
+                                        CornerRadius="8"
+                                        Tag="{x:Bind}"
+                                        ToolTipService.ToolTip="从列表移除">
+                                    <FontIcon FontSize="12"
+                                              Foreground="#CCFFFFFF"
+                                              Glyph="&#xE74D;" />
+                                </Button>
+                                </Grid>
+                            </Grid>
+                        </DataTemplate>
+                    </ListView.ItemTemplate>
+                </ListView>
+            </Grid>
+
+            <!--
+                Footer: one button per way in. Files on the left, a whole folder on the right, each
+                going straight to its own picker — the three-way dialog that used to stand here asked a
+                question the two buttons answer by being pressed.
+            -->
+            <Grid Grid.Row="2"
+                  Margin="20,4,20,16"
+                  ColumnSpacing="8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <Button x:Name="AddFilesButton"
+                        Grid.Column="0"
+                        Height="32"
+                        HorizontalAlignment="Stretch"
+                        Background="#26FFFFFF"
+                        BorderThickness="0"
+                        Click="OnAddFilesClicked"
+                        CornerRadius="10"
+                        ToolTipService.ToolTip="添加一个或多个音频文件">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <FontIcon FontSize="12"
+                                  Foreground="#FFFFFFFF"
+                                  Glyph="&#xE8E5;" />
+                        <TextBlock FontSize="12"
+                                   Foreground="#FFFFFFFF"
+                                   Text="添加文件" />
+                    </StackPanel>
+                </Button>
+
+                <Button x:Name="AddFolderButton"
+                        Grid.Column="1"
+                        Height="32"
+                        HorizontalAlignment="Stretch"
+                        Background="#26FFFFFF"
+                        BorderThickness="0"
+                        Click="OnAddFolderClicked"
+                        CornerRadius="10"
+                        ToolTipService.ToolTip="导入一个文件夹，包含其中的子文件夹">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <FontIcon FontSize="12"
+                                  Foreground="#FFFFFFFF"
+                                  Glyph="&#xE8B7;" />
+                        <TextBlock FontSize="12"
+                                   Foreground="#FFFFFFFF"
+                                   Text="导入文件夹" />
+                    </StackPanel>
+                </Button>
+            </Grid>
+        </Grid>
+    </Border>
+</Window>

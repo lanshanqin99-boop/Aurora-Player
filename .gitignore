@@ -1,0 +1,91 @@
+## .NET / Visual Studio
+[Bb]in/
+[Oo]bj/
+[Dd]ebug/
+[Rr]elease/
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+artifacts/
+
+# Build logs
+[Ll]og/
+[Ll]ogs/
+*.log
+*.binlog
+
+# Test results
+[Tt]est[Rr]esult*/
+*.trx
+*.coverage
+*.coveragexml
+
+# NuGet
+*.nupkg
+*.snupkg
+*.nuget.props
+*.nuget.targets
+project.lock.json
+
+# MSIX packaging output
+AppPackages/
+BundleArtifacts/
+*.msix
+*.msixupload
+*.appx
+*.appxbundle
+*.appxupload
+
+# Publish output
+publish/
+*.pubxml
+PublishScripts/
+
+# Code analysis and tooling
+_ReSharper*/
+*.DotSettings.user
+*.dotCover
+.idea/
+
+# Generated files
+Generated\ Files/
+*_wpftmp.csproj
+
+# Diagnostics written by the app itself
+#
+# The log records the full path of every file the parser is asked about, so committing it publishes
+# the contents of a private music library — folder names, file names and all.
+_crash.txt
+aurora-diagnostics.log
+*.flag
+
+# Signing material must never be committed: a .pfx holds a private key.
+*.pfx
+*.cer
+*.snk
+
+# ---------------------------------------------------------------------------
+# Distribution artifacts, spelled out explicitly.
+#
+# The installer is 147.92 MB, over GitHub's 100 MB per-file limit, and pushing
+# it would be rejected outright. It is a Release asset, not repository content.
+# The patterns above ([Bb]in/, *.user, *.suo, *.pfx) already cover the rest of
+# these; they are repeated here so the intent survives any future narrowing of
+# those globs.
+# ---------------------------------------------------------------------------
+bin/
+obj/
+.vs/
+.user
+.suo
+
+# Installer output: too large for the repository, and rebuildable from source.
+installer/Output/
+
+# Signing material: a .pfx holds a private key.
+*_cert.pfx
+
+# Diagnostics written by the app itself, which name the user's own files.
+_crash.txt

@@ -1,0 +1,150 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows10.0.26100.0</TargetFramework>
+    <!--
+      The minimum is the target, not something lower. Aurora's window treatment is Windows 11's, it
+      has only ever been built and tested on Windows 11 24H2 and later, and keeping the two numbers
+      equal is what removes the need for any version-adaptive code. App.OnLaunched refuses to start
+      on anything older and says why; Package.appxmanifest carries the same floor so an older system
+      cannot install it in the first place.
+    -->
+    <TargetPlatformMinVersion>10.0.26100.0</TargetPlatformMinVersion>
+    <RootNamespace>Aurora</RootNamespace>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon Condition="Exists('Assets\AppIcon.ico')">Assets\AppIcon.ico</ApplicationIcon>
+    <Platforms>x86;x64;ARM64</Platforms>
+    <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == ''">win-$([System.Runtime.InteropServices.RuntimeInformation]::ProcessArchitecture.ToString().ToLowerInvariant())</RuntimeIdentifier>
+    <PublishProfile Condition="Exists('Properties\PublishProfiles\win-$(Platform).pubxml')">win-$(Platform).pubxml</PublishProfile>
+    <UseWinUI>true</UseWinUI>
+    <WinUISDKReferences>false</WinUISDKReferences>
+    <EnableMsixTooling>true</EnableMsixTooling>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <!-- PickerInterop builds COMDLG_FILTERSPEC from PCWSTR pointers. -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <!--
+      Program.cs is the entry point instead of the generated one, because a second launch has to be
+      able to hand its activation to the instance already running rather than becoming a second player.
+    -->
+    <DefineConstants>$(DefineConstants);DISABLE_XAML_GENERATED_MAIN</DefineConstants>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Content Include="Assets\SplashScreen.scale-200.png" />
+    <Content Include="Assets\LockScreenLogo.scale-200.png" />
+    <Content Include="Assets\Square150x150Logo.scale-200.png" />
+    <Content Include="Assets\Square44x44Logo.scale-200.png" />
+    <Content Include="Assets\Square44x44Logo.targetsize-24_altform-unplated.png" />
+    <Content Include="Assets\Square44x44Logo.targetsize-48_altform-lightunplated.png" />
+    <Content Include="Assets\StoreLogo.png" />
+    <Content Include="Assets\AppIcon.ico" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Assets\Wide310x150Logo.scale-200.png" />
+    <!--
+      The idle surface photograph has been removed for the release. It was a third-party photograph and
+      shipping it would have carried a licensing risk, so no default background ships. IdleSurface still
+      looks for a file of that name beside the executable, so a user may still supply their own without
+      a rebuild; what is gone is the copy that used to be distributed with the app.
+    -->
+    <!--
+      The two pieces the startup reveal is drawn from: the mark, and the wordmark that simply arrives.
+      Loaded by URI (ms-appx), which resolves to the app folder both inside a package and unpackaged —
+      but only if the files are actually beside the executable, which is why these copy to the output
+      and not only into the package. Any asset added for the reveal later needs the same attribute, or
+      the personal (unpackaged) build will come up without it.
+
+      The icon copies for the same reason: WindowFrame loads it from the app folder by path, so an
+      unpackaged build without it has no window icon.
+    -->
+    <Content Include="Assets\SplashMark.png" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Assets\SplashWord.png" CopyToOutputDirectory="PreserveNewest" />
+    <!--
+      The icon Explorer shows for files associated with Aurora: the document-with-a-note mark, in the
+      size ladder the shell asks for. Globbed rather than listed because the ladder is the shell's, not
+      ours — 14 sizes, each in a plated and an unplated form, plus the unqualified fallback.
+    -->
+    <Content Include="Assets\FileAudioIcon*.png" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Manifest Include="$(ApplicationManifest)" />
+  </ItemGroup>
+
+  <!--
+    Defining the "Msix" ProjectCapability here allows the Single-project MSIX Packaging
+    Tools extension to be activated for this project even if the Windows App SDK Nuget
+    package has not yet been restored.
+  -->
+  <ItemGroup Condition="'$(DisableMsixProjectCapabilityAddedByProject)'!='true' and '$(EnableMsixTooling)'=='true'">
+    <ProjectCapability Include="Msix" />
+  </ItemGroup>
+
+  <!--
+    Microsoft.Windows.SDK.BuildTools.WinApp adds first-class support for
+    `dotnet run` on packaged WinUI apps: it hooks the .NET CLI Run target to
+    register a debug identity via the winapp CLI and launch the app with
+    package identity (AUMID).
+    Set <EnableWinAppRunSupport>false</EnableWinAppRunSupport> in a
+    <PropertyGroup> above to opt out.
+  -->
+  <ItemGroup>
+    <PackageReference Include="LibVLCSharp" Version="3.10.1" />
+    <PackageReference Include="Microsoft.Windows.CsWin32" Version="0.3.335">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="*" />
+    <PackageReference Include="Microsoft.WindowsAppSDK" Version="*" />
+    <PackageReference Include="Microsoft.Windows.SDK.BuildTools.WinApp" Version="*" />
+    <PackageReference Include="TagLibSharp" Version="2.3.0" />
+    <PackageReference Include="VideoLAN.LibVLC.Windows" Version="3.0.24" />
+    <PackageReference Include="WinUIEx" Version="2.9.3" />
+  </ItemGroup>
+
+  <!--
+    Defining the "HasPackageAndPublishMenuAddedByProject" property here allows the Solution
+    Explorer "Package and Publish" context menu entry to be enabled for this project even if
+    the Windows App SDK Nuget package has not yet been restored.
+  -->
+  <PropertyGroup Condition="'$(DisableHasPackageAndPublishMenuAddedByProject)'!='true' and '$(EnableMsixTooling)'=='true'">
+    <HasPackageAndPublishMenu>true</HasPackageAndPublishMenu>
+  </PropertyGroup>
+
+  <!-- Publish Properties -->
+  <PropertyGroup>
+    <PublishReadyToRun Condition="'$(Configuration)' == 'Debug'">False</PublishReadyToRun>
+    <PublishReadyToRun Condition="'$(Configuration)' != 'Debug'">True</PublishReadyToRun>
+    <!--
+      Trimming is off, in every configuration, and deliberately not conditioned on one.
+
+      WinUI 3 does not support trimming, and turning it on for release builds quietly produced a broken
+      package rather than a failure. Measured inside the first MSIX built with it on: TagLibSharp.dll
+      came out at 49152 bytes instead of 1400832, WinUIEx.dll at 237568 instead of 2088960 and
+      LibVLCSharp.dll at 114688 instead of 483328. The build also raised IL2072 against the
+      IFileOpenDialog activation in PickerInterop — the file and folder pickers — and IL2104 against
+      WinRT.Runtime, Microsoft.Windows.SDK.NET and TagLibSharp, none of which carry trim annotations.
+
+      Two of Aurora's core jobs go through code a trimmer cannot see: reading tags through TagLibSharp,
+      which reflects over its format handlers, and opening the pickers, which activate a COM class from
+      its CLSID. Neither failure would appear at build time as an error, so this cannot be left to a
+      command-line flag that a later build might forget. ReadyToRun above is unaffected.
+    -->
+    <PublishTrimmed>False</PublishTrimmed>
+    <!--
+      Distribution is an unpackaged build with an installer, not an MSIX.
+
+      WindowsPackageType=None tells the Windows App SDK that the app runs without package identity, and
+      WindowsAppSDKSelfContained=true carries the runtime with it, so the target machine needs nothing
+      installed first — neither .NET nor the Windows App Runtime.
+
+      Without package identity there is no MSIX to sign and no certificate for a user to trust, which is
+      what made the packaged build impossible to hand out. What it costs is package-declared file
+      associations: the installer writes ordinary registry associations instead, and those hand the file
+      over as a command-line argument. Aurora reads file activations, not arguments, so double-clicking a
+      file starts the app without opening the file until the entry point reads its arguments. That is a
+      code change and has deliberately not been made.
+    -->
+    <WindowsPackageType>None</WindowsPackageType>
+    <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
+  </PropertyGroup>
+</Project>
